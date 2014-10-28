@@ -23,6 +23,7 @@ namespace pbdcstest
         public int offcet;
         public ulong length;
         public uint id;
+        public uint new_id;
     }
 
     class Function

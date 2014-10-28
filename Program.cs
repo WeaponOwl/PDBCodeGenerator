@@ -450,7 +450,8 @@ namespace pbdcstest
 
         static void WriteStruct(Structure s, System.IO.StreamWriter stream)
         {
-            string defineline = "_" + s.name.ToUpper() + "_";
+            if (s.name.StartsWith("std::")) return;
+            string defineline = "_" + s.name.ToUpper().Replace(':', '_') + "_";
             stream.WriteLine("#ifndef " + defineline + "\n#define " + defineline);
             stream.Write("struct " + s.name);
             if (s.baseclass != null)
@@ -468,7 +469,14 @@ namespace pbdcstest
             {
                 foreach (Member m in s.members)
                 {
-                    stream.Write("\t" + m.access + ": " + m.type + " " + m.name + ";\n");
+                    string arraypartoftype = "";
+                    string type = m.type;
+                    if (m.type.Contains('['))
+                    {
+                        arraypartoftype = m.type.Substring(type.IndexOf('['));
+                        type = type.Remove(m.type.IndexOf('['));
+                    }
+                    stream.Write("\t" + m.access + ": " + type + " " + m.name + arraypartoftype + ";\n");
                 }
                 stream.Write("\n");
             }
@@ -493,11 +501,32 @@ namespace pbdcstest
                         stream.Write("\t" + f.name + ";\n");
                     else
                     {
+                        string name = f.name;
+                        if (name.Contains("::")) name = name.Substring(name.LastIndexOf("::") + 2);
+
                         int start = f.type.IndexOf('(');
                         int end = f.type.IndexOf(')');
                         string type = start < 0 ? "" : f.type.Substring(0, start);
                         string arg = start < 0 ? "" : f.type.Substring(start, end - start + 1);
-                        stream.Write("\t" + f.access + ": " + type + " " + f.name + " " + arg + ";\n");
+
+                        type = type.Replace("__thiscall", "").Replace("__cdecl", "").Replace("__stdcall", "");
+                        if (name == s.name) type = "";
+
+                        if (name.Contains("operator"))
+                        {
+                            if (name == "operator+=" ||
+                                name == "operator-=" ||
+                                name == "operator/=" ||
+                                name == "operator*=" ||
+                                name == "operator==" ||
+                                name == "operator!=" ||
+                                (name == "operator+" && arg.Length > 3) ||
+                                (name == "operator-" && arg.Length > 3) ||
+                                (name == "operator*" && arg.Length > 3) ||
+                                (name == "operator/" && arg.Length > 3))
+                                stream.Write("\t" + f.access + ": " + type + " " + name + " " + arg + ";\n");
+                        }
+                        else stream.Write("\t" + f.access + ": " + type + " " + name + " " + arg + ";\n");
                     }
                 }
                 stream.Write("\n");
@@ -536,24 +565,27 @@ namespace pbdcstest
         {
             foreach (int ss in s.substructures_new_ids)
             {
-                Structure s2 = structures[ss];
-                bool writestruct=false;
-                if (s2.filenames.Count > 0)
+                if ((uint)ss != s.new_id)
                 {
-                    string filename = "";
-                    foreach (string fn in s2.filenames)
-                        if (fn.Contains(".h")) filename = fn;
+                    Structure s2 = structures[ss];
+                    bool writestruct = false;
+                    if (s2.filenames.Count > 0)
+                    {
+                        string filename = "";
+                        foreach (string fn in s2.filenames)
+                            if (fn.Contains(".h")) filename = fn;
 
-                    if (filename.Length > 0)
-                        stream.WriteLine("#include " + filename.Substring(filename.LastIndexOf("\\") + 1));
-                    else writestruct=true;
-                }
-                else writestruct = true;
+                        if (filename.Length > 0)
+                            stream.WriteLine("#include <" + filename.Substring(filename.LastIndexOf("\\") + 1) + ">");
+                        else writestruct = true;
+                    }
+                    else writestruct = true;
 
-                if (writestruct)
-                {
-                    stream.WriteLine("");
-                    WriteStruct(s2, stream);
+                    if (writestruct)
+                    {
+                        stream.WriteLine("");
+                        WriteStructData(s2, structures, stream);
+                    }
                 }
             }
 
@@ -687,6 +719,10 @@ namespace pbdcstest
         #endregion
         static bool FilterName(string name)
         {
+            if (name.Contains("_RTL_CRITICAL_SECTION_DEBUG")) return false;
+            if (name.Contains("IDirect3D8")) return false;
+            if (name.Contains("IDirect3DDevice8")) return false;
+            return true;
             if (name.StartsWith("std::")) return false;
             if (reserved.Contains<string>(name)) return false;
             foreach (string s in reservedbegin)
@@ -700,7 +736,14 @@ namespace pbdcstest
             string type = stype.Replace("*", "").Replace(" ", "").Replace("&", "");
             if (type.Contains('['))
                 type=type.Remove(type.IndexOf('['));
-            return s.name.Contains(type);
+            if (s.name.Contains(type))
+            {
+                int comp = string.Compare(s.name, type);
+                if (!s.name.StartsWith("std::")&&comp!=0)
+                    comp = comp;
+                return comp == 0;
+            }
+            return false;
         }
         static void Main(string[] args)
         {
@@ -938,17 +981,20 @@ namespace pbdcstest
             #region Second processing - process substructure
             Console.WriteLine("SP");
             i = 0;
+            string paststruct = "";
             foreach (Structure s in structures)
             {
-                if (FilterName(s.name))
+                s.substructures_new_ids = new List<int>();
+
+                if (FilterName(s.name)&&paststruct!=s.name)
                 {
-                    s.substructures_new_ids = new List<int>();
+                    paststruct=s.name;
                     if (s.members != null)
                         foreach (Member m in s.members)
                         {
                             stype = m.type;
                             int ind = Array.FindIndex<Structure>(structures, StructWithType);
-                            if (ind >= 0)
+                            if (ind >= 0 && (uint)ind != s.new_id)
                             {
                                 if (!s.substructures_new_ids.Contains(ind))
                                     s.substructures_new_ids.Add(ind);
@@ -965,6 +1011,7 @@ namespace pbdcstest
                             int ind = Array.FindIndex<Structure>(structures, StructWithType);
                             if (ind >= 0)
                             {
+                                b.new_id = (uint)ind;
                                 if (!s.substructures_new_ids.Contains(ind))
                                     s.substructures_new_ids.Add(ind);
                                 if (!structures[ind].usedin_new_ids.Contains((int)s.new_id))
@@ -972,6 +1019,32 @@ namespace pbdcstest
                             }
                         }
                     }
+
+                    if (s.functions != null)
+                        foreach (Function f in s.functions)
+                        {
+                            int start = f.type.IndexOf('(');
+                            int end = f.type.IndexOf(')');
+                            if (start >= 0)
+                            {
+                                string[] arg = f.type.Substring(start, end - start + 1).Split(new char[] { '(', ')', ',' });
+                                foreach (string a in arg)
+                                {
+                                    if (a.Length > 0)
+                                    {
+                                        stype = a.Replace("const", "").Replace("*", "").Replace("&", "");
+                                        int ind = Array.FindIndex<Structure>(structures, StructWithType);
+                                        if (ind >= 0)
+                                        {
+                                            if (!s.substructures_new_ids.Contains(ind))
+                                                s.substructures_new_ids.Add(ind);
+                                            if (!structures[ind].usedin_new_ids.Contains((int)s.new_id))
+                                                structures[ind].usedin_new_ids.Add((int)s.new_id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
 
                     i++;
@@ -982,19 +1055,23 @@ namespace pbdcstest
             #endregion
 
             #region Third processing - Set headers
-            Console.WriteLine("TP");
+            Console.WriteLine("\nTP");
             i = 0;
+            paststruct = "";
             foreach (Structure s in structures)
             {
-                if (FilterName(s.name)&&s.filenames.Count>0)
+                //if (s.name.Contains("_D3DXMATRIXA16"))
+                    //i = i;
+                if (FilterName(s.name)&&s.filenames.Count>0&&paststruct!=s.name)
                 {
+                    paststruct=s.name;
                     string filename = "";
                     foreach (string fn in s.filenames)
                         if (fn.Contains(".h")) filename = fn;
 
                     if (filename.Length > 0)
                     {
-                        System.IO.FileStream fs = System.IO.File.Open("c:\\project\\" + filename[0] + filename.Substring(2), System.IO.FileMode.Open);
+                        System.IO.FileStream fs = System.IO.File.Open("c:\\project\\" + filename[0] + filename.Substring(2), System.IO.FileMode.Append);
                         System.IO.StreamWriter fstream = new System.IO.StreamWriter(fs);
 
                         string definename = "__" + s.name.ToUpper() + "__";
@@ -1009,6 +1086,10 @@ namespace pbdcstest
                         fs.Close();
                     }
                 }
+
+                i++;
+                Console.Write('.');
+                if (i % 50 == 0) Console.WriteLine(" :" + i + "\n");
             }
             #endregion
 
@@ -1016,7 +1097,7 @@ namespace pbdcstest
             System.IO.StreamWriter file = new System.IO.StreamWriter(System.IO.File.Open("sdump.txt", System.IO.FileMode.Create), Encoding.ASCII);
             #region Structs
             file.WriteLine("//----------------Structures");
-            string paststruct = "";
+            paststruct = "";
             foreach (Structure s in structures)
             {
                 if (FilterName(s.name)&&paststruct!=s.name)
