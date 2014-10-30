@@ -13,8 +13,6 @@ namespace pbdcstest
         public string type;
         public string access;
         public uint id;
-        public uint templateid_f;
-        public uint templateid_s;
     }
 
     class BaseClass
@@ -34,8 +32,6 @@ namespace pbdcstest
         public string access;
         public string filename;
         public uint id;
-        public uint templateid_f;
-        public uint templateid_s;
     }
 
     class Typedef
@@ -43,8 +39,6 @@ namespace pbdcstest
         public string name;
         public string type;
         public uint id;
-        public uint templateid_f;
-        public uint templateid_s;
     }
 
     class Enum
@@ -74,8 +68,6 @@ namespace pbdcstest
         public string name;
         public uint id;
         public uint new_id;
-        public uint templateid_f;
-        public uint templateid_s;
     }
 
     class Structure
@@ -83,8 +75,6 @@ namespace pbdcstest
         public string name;
         public uint id;
         public uint new_id;
-        public uint templateid_f;
-        public uint templateid_s;
 
         public Member[] members;
         public BaseClass[] baseclass;
@@ -100,6 +90,13 @@ namespace pbdcstest
     }
 
     struct Compiland
+    {
+        public string source;
+        public bool have_header;
+        public string[] includes;
+    }
+
+    struct File
     {
         public string source;
         public bool have_header;

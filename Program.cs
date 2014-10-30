@@ -17,28 +17,30 @@ namespace pbdcstest
                 return (string.Compare(((Structure)x).name,((Structure)y).name));
             }
         }
+        public class FileWithStructures
+        {
+            public string name;
+            public List<int> structures;
+            public List<string> includes;
 
-        static void PrintType(IDiaSymbol symbol, System.IO.StreamWriter stream, IDiaSession session,ref string s_type)
+            public FileWithStructures(string name)
+            {
+                this.name=name;
+                structures = new List<int>();
+                includes = new List<string>();
+            }
+        }
+
+        static void PrintType(IDiaSymbol symbol, IDiaSession session,ref string s_type)
         {
             if (symbol.symTag != (int)SymTagEnum.SymTagPointerType)
             {
                 if (symbol.constType == 1)
-                {
-                    //stream.Write("const ");
-                    s_type += "const ";
-                }
-
+                    s_type += "const ";                
                 if (symbol.volatileType == 1)
-                {
-                    //stream.Write("volatile ");
-                    s_type += "volatile ";
-                }
-
+                    s_type += "volatile ";                
                 if (symbol.unalignedType == 1)
-                {
-                    //stream.Write("__unaligned ");
                     s_type += "__unaligned ";
-                }
             }
 
             switch ((SymTagEnum)symbol.symTag)
@@ -46,23 +48,9 @@ namespace pbdcstest
                 case SymTagEnum.SymTagPointerType:
                     Classes.PointerType pointer = new Classes.PointerType(symbol);
 
-                    if (pointer.reference) ;
-                    //stream.Write("&");
-                    else ;
-                        //stream.Write("*");
-                    if (symbol.constType == 1) ;
-                            //stream.Write("const ");
-                    if (symbol.volatileType == 1) ;
-                                //stream.Write("volatile ");
-                    if (symbol.unalignedType == 1) ;
-                                    //stream.Write("__unaligned ");
+                    PrintType(pointer.type, session, ref s_type);
 
-                                    PrintType(pointer.type, stream, session, ref s_type);
-
-                    if (pointer.reference)
-                        s_type += " &";
-                    else
-                        s_type += " *";
+                    s_type += pointer.reference ? "&" : "*";
 
                     if (symbol.constType == 1)
                         s_type += "const ";
@@ -79,125 +67,86 @@ namespace pbdcstest
                     switch (basetype.baseType)
                     {
                         case (int)BasicType.btUInt:
-                            //stream.Write("unsigned ");
                             s_type += "unsigned ";
                             switch (basetype.length)
                             {
-                                case 1: //stream.Write("char ");
-                                    s_type += "char ";
-                                    break;
-                                case 2: //stream.Write("short ");
-                                    s_type += "short ";
-                                    break;
-                                case 4: //stream.Write("int ");
-                                    s_type += "int ";
-                                    break;
-                                case 8: //stream.Write("__int64 ");
-                                    s_type += "__int64 ";
-                                    break;
+                                case 1:s_type += "char ";break;
+                                case 2:s_type += "short ";break;
+                                case 4:s_type += "int ";break;
+                                case 8:s_type += "__int64 ";break;
                             }
                             break;
                         case (int)BasicType.btInt:
-                            //stream.Write("signed ");
                             s_type += "signed ";
                             switch (basetype.length)
                             {
-                                case 1: //stream.Write("char ");
-                                    s_type += "char ";
-                                    break;
-                                case 2: //stream.Write("short ");
-                                    s_type += "short ";
-                                    break;
-                                case 4: //stream.Write("int ");
-                                    s_type += "int ";
-                                    break;
-                                case 8: //stream.Write("__int64 ");
-                                    s_type += "__int64 ";
-                                    break;
+                                case 1:s_type += "char ";break;
+                                case 2:s_type += "short ";break;
+                                case 4:s_type += "int ";break;
+                                case 8:s_type += "__int64 ";break;
                             }
                             break;
                         case (int)BasicType.btFloat:
                             switch (basetype.length)
                             {
-                                case 4: //stream.Write("float ");
-                                    s_type += "float ";
-                                    break;
-                                case 8: //stream.Write("double ");
-                                    s_type += "double ";
-                                    break;
+                                case 4:s_type += "float ";break;
+                                case 8:s_type += "double ";break;
                             }
                             break;
-                        default:
-                            //stream.Write(PrintSymbolWrapper.rgBaseType[basetype.baseType]);
-                            s_type += PrintSymbolWrapper.rgBaseType[basetype.baseType];
-                            break;
+                        default:s_type += PrintSymbolWrapper.rgBaseType[basetype.baseType];break;
                     }
                     break;
 
                 case SymTagEnum.SymTagUDT:
                     Classes.UTD utd = new Classes.UTD(symbol);
-                    //stream.Write("struct " + utd.symIndexId + " " + utd.name);
                     s_type += utd.name;
                     break;
 
                 case SymTagEnum.SymTagArrayType:
                     Classes.ArrayType array = new Classes.ArrayType(symbol);
-                    //stream.Write("[" + array.count + "]");
-                    PrintType(array.type, stream, session, ref s_type);
+                    PrintType(array.type, session, ref s_type);
                     s_type += "[" + array.count + "]";
                     break;
 
                 case SymTagEnum.SymTagVTableShape:
                     Classes.VTableShape shape = new Classes.VTableShape(symbol);
-                    //stream.Write("[" + shape.count + "] vtable");
                     s_type += "vtable[" + shape.count + "]";
                     break;
 
                 case SymTagEnum.SymTagEnum:
                     Classes.Enum @enum = new Classes.Enum(symbol);
-                    //stream.Write(@enum.symIndexId + " " + @enum.name);
                     s_type += @enum.name;
                     break;
 
                 case SymTagEnum.SymTagFunctionType:
                     Classes.FunctionType funktype = new Classes.FunctionType(symbol);
-                    //stream.Write(PrintSymbolWrapper.rgCallingConvention[funktype.callingConvention]+" ");
-                    s_type += PrintSymbolWrapper.rgCallingConvention[funktype.callingConvention] + " ";
-                    PrintType(funktype.type, stream, session, ref s_type);
+                    PrintType(funktype.type, session, ref s_type);
+                    s_type += " " + PrintSymbolWrapper.rgCallingConvention[funktype.callingConvention] + " ";
 
                     IDiaEnumSymbols subsymbols;
                     symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out subsymbols);
-                    //stream.Write("(");
                     s_type += "(";
-                    int i = 0;
                     foreach (IDiaSymbol sym in subsymbols)
                     {
-                        PrintType(sym, stream, session, ref s_type);
-                        if (i < subsymbols.count - 1)
-                        {
-                            //stream.Write(",");
-                            s_type += ",";
-                        }
-                        i++;
+                        PrintType(sym, session, ref s_type);
+                        s_type += ",";
                     }
-                    //stream.Write(")");
                     s_type += ")";
+                    s_type = s_type.Replace(",)", ")");
                     break;
 
                 case SymTagEnum.SymTagFunctionArgType:
                     Classes.FunctionArgType arg = new Classes.FunctionArgType(symbol);
-                    PrintType(arg.type, stream, session, ref s_type);
+                    PrintType(arg.type, session, ref s_type);
                     break;
 
                 default:
-                    //stream.Write(((SymTagEnum)symbol.symTag).ToString());
                     break;
             }
         }
-        static void PrintData(Blocks.Data data, System.IO.StreamWriter stream, IDiaSession session,ref Member s_member)
+        static void PrintData(Blocks.Data data, IDiaSession session,ref Member s_member)
         {
             SymTagEnum symTag = (SymTagEnum)data.type.symTag;
-            //stream.Write("\tData       : [" + data.offset.ToString("00000000") + "] [" + data.type.length.ToString("0000") + "] ");
 
             s_member.access = PrintSymbolWrapper.rgAccess[(int)data.access];
             s_member.length = data.type.length;
@@ -206,36 +155,29 @@ namespace pbdcstest
             s_member.type = "";
             s_member.id = data.type.symIndexId;
 
-            //stream.Write(PrintSymbolWrapper.rgAccess[(int)data.access] + ": ");
-            PrintType(data.type, stream, session, ref s_member.type);
-            //stream.Write(" " + data.name);
+            PrintType(data.type, session, ref s_member.type);
         }
-        static void PrintBaseClass(Classes.BaseClass baseclass, System.IO.StreamWriter stream, IDiaSession session,ref BaseClass s_baseclass)
+        static void PrintBaseClass(Classes.BaseClass baseclass, IDiaSession session,ref BaseClass s_baseclass)
         {
-            //stream.Write("\tBase class : [" + baseclass.offset.ToString("00000000") + "] [" + baseclass.type.length.ToString("0000") + "] ");
-
             s_baseclass.type = "";
             s_baseclass.offcet = baseclass.offset;
             s_baseclass.length = baseclass.length;
             s_baseclass.id = baseclass.type.symIndexId;
 
-            PrintType(baseclass.type, stream, session, ref s_baseclass.type);
+            PrintType(baseclass.type, session, ref s_baseclass.type);
         }
-        static void PrintFunction(Blocks.Function function, System.IO.StreamWriter stream, IDiaSession session,ref Function s_function)
+        static void PrintFunction(Blocks.Function function, IDiaSession session, ref Function s_function)
         {
-            //stream.Write("\tFunction   :                  ");
             if (function.undecoratedName != null)
             {
-                //stream.Write(" " + function.undecoratedName);
                 s_function.undname = function.undecoratedName;
             }
-            
-                s_function.name = function.name;
-                s_function.type = function.isStatic ? "static " : "";
-                s_function.access = PrintSymbolWrapper.rgAccess[function.access];
 
-                PrintType(function.type, stream, session, ref s_function.type);
-                //stream.Write(" " + function.name);
+            s_function.name = function.name;
+            s_function.type = function.isStatic ? "static " : "";
+            s_function.access = PrintSymbolWrapper.rgAccess[function.access];
+
+            PrintType(function.type, session, ref s_function.type);
 
             s_function.id = function.symIndexId;
             s_function.filename = "";
@@ -251,58 +193,24 @@ namespace pbdcstest
                     break;
                 }
             }
-            else
-            {
-                //ulong vaddr = function.virtualAddress;
-                //session.findLinesByVA(vaddr, (uint)function.length, out enumLines);
-                //if (enumLines.count > 0)
-                //{
-                //    foreach (IDiaLineNumber line in enumLines)
-                //    {
-                //        s_function.filename += ":" + line.sourceFile.fileName + "[" + enumLines.count + "]";
-                //        break;
-                //    }
-                //}
-                //else
-                //{
-                //    addr = function.addressOffset;
-                //    session.findLinesByAddr((uint)function.addressSection, (uint)vaddr, (uint)function.length, out enumLines);
-                //    if (enumLines.count > 0)
-                //    {
-                //        foreach (IDiaLineNumber line in enumLines)
-                //        {
-                //            s_function.filename += ":" + line.sourceFile.fileName + "[" + enumLines.count + "]";
-                //            break;
-                //        }
-                //    }
-                //}
-            }
         }
-        static void PrintTypedef(Classes.Typedef type, System.IO.StreamWriter stream, IDiaSession session,ref Typedef s_typedef)
+        static void PrintTypedef(Classes.Typedef type, IDiaSession session,ref Typedef s_typedef)
         {
             s_typedef.name = type.name;
             s_typedef.type = "";
             s_typedef.id = type.symIndexId;
 
-            //stream.Write("\tTypedef    :                   ");
-            //stream.Write(type.symIndexId + " " + type.name+" ");
-            PrintType(type.type, stream, session, ref s_typedef.type);
+            PrintType(type.type, session, ref s_typedef.type);
         }
-        static void PrintUTD(Classes.UTD utd, System.IO.StreamWriter stream, IDiaSession session,ref SubStructure s_utd)
+        static void PrintUTD(Classes.UTD utd, IDiaSession session,ref SubStructure s_utd)
         {
             s_utd.name = utd.name;
             s_utd.id = utd.symIndexId;
-
-            //stream.Write("\tUTD        :                   ");
-            //stream.Write(utd.symIndexId + " " + utd.name);
         }
-        static void PrintEnum(Classes.Enum @enum, System.IO.StreamWriter stream, IDiaSession session,ref Enum s_enum)
+        static void PrintEnum(Classes.Enum @enum, IDiaSession session,ref Enum s_enum)
         {
             s_enum.name = @enum.name;
             s_enum.id = @enum.symIndexId;
-
-            //stream.Write("\tEnum       :                   ");
-            //stream.Write(@enum.symIndexId + " " + @enum.name);
 
             IDiaEnumSymbols childrens;
             @enum.symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out childrens);
@@ -318,18 +226,16 @@ namespace pbdcstest
                 i++;
             }
         }
-        static void PrintVTable(Classes.VTable table, System.IO.StreamWriter stream, IDiaSession session,ref VTable s_vtable)
+        static void PrintVTable(Classes.VTable table, IDiaSession session,ref VTable s_vtable)
         {
             s_vtable.count = table.type.length;
             s_vtable.type = "";
             s_vtable.id = table.type.symIndexId;
 
-            //stream.Write("\tVtable     :            [" + table.type.length.ToString("0000") + "] ");
-            PrintType(table.type, stream, session, ref s_vtable.type);
+            PrintType(table.type, session, ref s_vtable.type);
         }
-        static void PrintStructEx(Classes.UTD utd, System.IO.StreamWriter stream, IDiaSession session, ref Structure structure)
+        static void PrintStructEx(Classes.UTD utd, IDiaSession session, ref Structure structure)
         {
-            //stream.WriteLine("struct " + utd.symIndexId + " " + utd.name);
             structure.id = utd.symIndexId;
             structure.name = utd.name;
 
@@ -383,8 +289,7 @@ namespace pbdcstest
 
                         Blocks.Data data = new Blocks.Data(subsym);
                         structure.members[members] = new Member();
-                        PrintData(data, stream, session,ref structure.members[members]);
-                        //stream.Write("\n");
+                        PrintData(data, session,ref structure.members[members]);
                         members++;
                         break;
 
@@ -392,8 +297,7 @@ namespace pbdcstest
 
                         Classes.BaseClass baseclass = new Classes.BaseClass(subsym);
                         structure.baseclass[baseclasses] = new BaseClass();
-                        PrintBaseClass(baseclass, stream, session, ref structure.baseclass[baseclasses]);
-                        //stream.Write("\n");
+                        PrintBaseClass(baseclass, session, ref structure.baseclass[baseclasses]);
                         baseclasses++;
                         break;
 
@@ -401,8 +305,7 @@ namespace pbdcstest
 
                         Blocks.Function funk = new Blocks.Function(subsym);
                         structure.functions[functions] = new Function();
-                        PrintFunction(funk, stream, session, ref structure.functions[functions]);
-                        //stream.Write("\n");
+                        PrintFunction(funk, session, ref structure.functions[functions]);
                         functions++;
                         break;
 
@@ -410,8 +313,7 @@ namespace pbdcstest
 
                         Classes.Typedef type = new Classes.Typedef(subsym);
                         structure.typedefs[typedefs] = new Typedef();
-                        PrintTypedef(type, stream, session, ref structure.typedefs[typedefs]);
-                        //stream.Write("\n");
+                        PrintTypedef(type, session, ref structure.typedefs[typedefs]);
                         typedefs++;
                         break;
 
@@ -419,8 +321,7 @@ namespace pbdcstest
 
                         Classes.UTD subutd = new Classes.UTD(subsym);
                         structure.substructures[substructures] = new SubStructure();
-                        PrintUTD(subutd, stream, session, ref structure.substructures[substructures]);
-                        //stream.Write("\n");
+                        PrintUTD(subutd, session, ref structure.substructures[substructures]);
                         substructures++;
                         break;
 
@@ -428,8 +329,7 @@ namespace pbdcstest
 
                         Classes.Enum @enum = new Classes.Enum(subsym);
                         structure.enums[enums] = new Enum();
-                        PrintEnum(@enum, stream, session, ref structure.enums[enums]);
-                        //stream.Write("\n");
+                        PrintEnum(@enum, session, ref structure.enums[enums]);
                         enums++;
                         break;
 
@@ -437,29 +337,64 @@ namespace pbdcstest
 
                         Classes.VTable vtable = new Classes.VTable(subsym);
                         structure.vtables[vtables] = new VTable();
-                        PrintVTable(vtable, stream, session, ref structure.vtables[vtables]);
-                        //stream.Write("\n");
+                        PrintVTable(vtable, session, ref structure.vtables[vtables]);
                         vtables++;
                         break;
 
-                    default: //stream.WriteLine("\t" + tag.ToString());
+                    default:
                         break;
                 }
             }
         }
 
+        static void FindAllSubstruct(Structure s, Structure[] structures, ref List<int> substructureslist)
+        {
+            foreach (int ss in s.substructures_new_ids)
+            {
+                if ((uint)ss != s.new_id)
+                {
+                    if (!substructureslist.Contains(ss))
+                    {
+                        substructureslist.Add(ss);
+                        FindAllSubstruct(structures[ss], structures, ref substructureslist);
+                    }
+                }
+            }
+        }
+        static void SetDepthForStructs(Structure[] structures, int[] structureids, ref int[] structuredepth)
+        {
+            for (int i = 0; i < structureids.Length; i++)
+            {
+                int id = structureids[i];
+                List<int> sub = structures[id].substructures_new_ids;
+                for (int q = 0; q < structureids.Length; q++)
+                    if (q != i && sub.Contains(structureids[q])) structuredepth[q]++;
+            }
+        }
+
         static void WriteStruct(Structure s, System.IO.StreamWriter stream)
         {
+            string sname = s.name;
             if (s.name.StartsWith("std::")) return;
             string defineline = "_" + s.name.ToUpper().Replace(':', '_') + "_";
             stream.WriteLine("#ifndef " + defineline + "\n#define " + defineline);
-            stream.Write("struct " + s.name);
+
+            string[] parents = s.name.Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries);
+            if (parents.Length > 1)
+            {
+                stream.Write("namespace " + parents[0] + "\n{\n");
+                sname = sname.Replace(parents[0] + "::", "");
+            }
+
+            stream.Write("struct " + sname);
             if (s.baseclass != null)
             {
                 int k = 0;
                 foreach (BaseClass b in s.baseclass)
                 {
-                    stream.Write((k == 0 ? ":" : ",") + b.type);
+                    string type = b.type.Replace(parents[0] + "::", "");
+
+                    stream.Write((k == 0 ? ":" : ",") + type);
                     k++;
                 }
             }
@@ -497,36 +432,26 @@ namespace pbdcstest
             {
                 foreach (Function f in s.functions)
                 {
-                    if (f.type == null)
-                        stream.Write("\t" + f.name + ";\n");
+                    if (f.undname != null)
+                    {
+                        string name = f.undname;
+                        if (name.Contains(s.name))
+                            name = name.Replace(s.name + "::", "");
+
+                        stream.Write("\t" + name + ";\n");
+                    }
                     else
                     {
                         string name = f.name;
-                        if (name.Contains("::")) name = name.Substring(name.LastIndexOf("::") + 2);
+                        if (name.Contains(s.name))
+                            name = name.Replace(s.name + "::", "");
 
                         int start = f.type.IndexOf('(');
                         int end = f.type.IndexOf(')');
                         string type = start < 0 ? "" : f.type.Substring(0, start);
                         string arg = start < 0 ? "" : f.type.Substring(start, end - start + 1);
 
-                        type = type.Replace("__thiscall", "").Replace("__cdecl", "").Replace("__stdcall", "");
-                        if (name == s.name) type = "";
-
-                        if (name.Contains("operator"))
-                        {
-                            if (name == "operator+=" ||
-                                name == "operator-=" ||
-                                name == "operator/=" ||
-                                name == "operator*=" ||
-                                name == "operator==" ||
-                                name == "operator!=" ||
-                                (name == "operator+" && arg.Length > 3) ||
-                                (name == "operator-" && arg.Length > 3) ||
-                                (name == "operator*" && arg.Length > 3) ||
-                                (name == "operator/" && arg.Length > 3))
-                                stream.Write("\t" + f.access + ": " + type + " " + name + " " + arg + ";\n");
-                        }
-                        else stream.Write("\t" + f.access + ": " + type + " " + name + " " + arg + ";\n");
+                        stream.Write("\t" + f.access + ": " + type + " " + name + " " + arg + ";\n");
                     }
                 }
                 stream.Write("\n");
@@ -550,43 +475,43 @@ namespace pbdcstest
                 stream.Write("\n");
             }
 
-            //if (s.vtables != null)
-            //{
-            //    foreach (VTable v in s.vtables)
-            //    {
-            //        stream.Write("\t//vtable x" + v.count + "\n");
-            //    }
-            //    stream.Write("\n");
-            //}
-
-            stream.Write("};\n#endif\n");
+            stream.Write("};\n");
+            if (parents.Length > 1)
+                stream.Write("}\n");
+            stream.Write("#endif\n");
         }
         static void WriteStructData(Structure s,Structure[] structures,System.IO.StreamWriter stream)
         {
-            foreach (int ss in s.substructures_new_ids)
+            List<int> substructures = new List<int>();
+            FindAllSubstruct(s, structures, ref substructures);
+            List<string> includelist = new List<string>();
+            List<int> unincludedlist = new List<int>();
+            substructures.Sort();
+
+            foreach (int ss in substructures)
             {
-                if ((uint)ss != s.new_id)
+                Structure s2 = structures[ss];
+                if (s2.filenames.Count > 0)
                 {
-                    Structure s2 = structures[ss];
-                    bool writestruct = false;
-                    if (s2.filenames.Count > 0)
-                    {
-                        string filename = "";
-                        foreach (string fn in s2.filenames)
-                            if (fn.Contains(".h")) filename = fn;
+                    string filename = "";
+                    foreach (string fn in s2.filenames)
+                        if (fn.Contains(".h")) filename = fn;
 
-                        if (filename.Length > 0)
-                            stream.WriteLine("#include <" + filename.Substring(filename.LastIndexOf("\\") + 1) + ">");
-                        else writestruct = true;
-                    }
-                    else writestruct = true;
-
-                    if (writestruct)
-                    {
-                        stream.WriteLine("");
-                        WriteStructData(s2, structures, stream);
-                    }
+                    if (filename.Length > 0)
+                        includelist.Add(filename);
+                        //stream.WriteLine("#include <" + filename.Substring(filename.LastIndexOf("\\") + 1) + ">");
+                    else unincludedlist.Add(ss);
                 }
+                unincludedlist.Add(ss);
+            }
+
+            foreach (string include in includelist)
+                stream.WriteLine("#include <" + include.Substring(include.LastIndexOf("\\") + 1) + ">");
+
+            foreach (int un in unincludedlist)
+            {
+                stream.WriteLine("");
+                WriteStruct(structures[un], stream);
             }
 
             stream.WriteLine("");
@@ -766,6 +691,7 @@ namespace pbdcstest
             session.globalScope.findChildren(SymTagEnum.SymTagCompiland, null, 0, out enumCompilands);
 
             #region Load
+            Console.WriteLine("Load");
             System.IO.StreamWriter stream = new System.IO.StreamWriter(System.IO.File.Open("dump.txt", System.IO.FileMode.Create), Encoding.ASCII);
             Compiland[] compilands = new Compiland[enumCompilands.count];
             int i = 0;
@@ -821,10 +747,10 @@ namespace pbdcstest
             {
                 Classes.UTD utd = new Classes.UTD(sym);
                 structures[i] = new Structure();
-                PrintStructEx(utd, stream, session, ref structures[i]);
+                PrintStructEx(utd, session, ref structures[i]);
                 i++;
-                Console.Write('.');
-                if (i % 50 == 0) Console.WriteLine(" :" + i + "\n");
+                if (i % 4 == 0) Console.Write('.');
+                if (i % 200 == 0) Console.WriteLine(" :" + i + "\n");
             }
 
             i=0;
@@ -1054,38 +980,122 @@ namespace pbdcstest
             }
             #endregion
 
-            #region Third processing - Set headers
+            #region Third processing - Set files
             Console.WriteLine("\nTP");
             i = 0;
             paststruct = "";
+            List<FileWithStructures> fileswithstructures = new List<FileWithStructures>();
             foreach (Structure s in structures)
             {
-                //if (s.name.Contains("_D3DXMATRIXA16"))
-                    //i = i;
-                if (FilterName(s.name)&&s.filenames.Count>0&&paststruct!=s.name)
+                if (FilterName(s.name) && s.filenames.Count > 0 && paststruct != s.name)
                 {
-                    paststruct=s.name;
+                    paststruct = s.name;
+
                     string filename = "";
                     foreach (string fn in s.filenames)
                         if (fn.Contains(".h")) filename = fn;
 
                     if (filename.Length > 0)
                     {
-                        System.IO.FileStream fs = System.IO.File.Open("c:\\project\\" + filename[0] + filename.Substring(2), System.IO.FileMode.Append);
-                        System.IO.StreamWriter fstream = new System.IO.StreamWriter(fs);
+                        FileWithStructures currentfws = null;
+                        foreach (FileWithStructures fws in fileswithstructures)
+                            if (fws.name == filename)
+                                currentfws = fws;
+                        if (currentfws == null)
+                        {
+                            currentfws = new FileWithStructures(filename);
+                            fileswithstructures.Add(currentfws);
+                        }
 
-                        string definename = "__" + s.name.ToUpper() + "__";
-                        fstream.WriteLine("#ifndef " + definename);
-                        fstream.WriteLine("#define " + definename);
+                        if (!currentfws.structures.Contains((int)s.new_id))
+                            currentfws.structures.Add((int)s.new_id);
+                        FindAllSubstruct(s, structures, ref currentfws.structures);
 
-                        WriteStructData(s, structures, fstream);
+                        List<int> removelist = new List<int>();
+                        foreach (int structure in currentfws.structures)
+                        { 
+                            Structure s2 = structures[structure];
 
-                        fstream.WriteLine("#endif");
-
-                        fstream.Close();
-                        fs.Close();
+                            string filename2 = "";
+                            foreach (string fn in s2.filenames)
+                                if (fn.Contains(".h")) filename2 = fn;
+                            if (filename2.Length > 0&&filename2!=currentfws.name)
+                            {
+                                if (!currentfws.includes.Contains(filename2))
+                                    currentfws.includes.Add(filename2);
+                                removelist.Add(structure);
+                            }
+                        }
+                        foreach (int rem in removelist)
+                            currentfws.structures.Remove(rem);
                     }
                 }
+
+                i++;
+                Console.Write('.');
+                if (i % 50 == 0) Console.WriteLine(" :" + i + "\n");
+            }
+            #endregion
+
+            #region Forth processing - Set headers
+            Console.WriteLine("\n4P");
+            i = 0;
+            paststruct = "";
+            foreach (FileWithStructures fws in fileswithstructures)
+            {
+                int[] structureids = fws.structures.ToArray();
+                int[] structuredepth = new int[structureids.Length];
+                SetDepthForStructs(structures, structureids, ref structuredepth);
+                for (int q = 0; q < structuredepth.Length; q++)
+                {
+                    int max = structuredepth[q];
+                    int max_id=q;
+                    for (int j = q + 1; j < structuredepth.Length; j++)
+                    {
+                        if (structuredepth[j] > max)
+                        {
+                            max = structuredepth[j];
+                            max_id = j;
+                        }
+                    }
+
+                    if (max_id != q)
+                    {
+                        int w = structuredepth[max_id];
+                        structuredepth[max_id] = structuredepth[q];
+                        structuredepth[q] = w;
+
+                        w = structureids[max_id];
+                        structureids[max_id] = structureids[q];
+                        structureids[q] = w;
+                    }
+                }
+
+                System.IO.FileStream fs = System.IO.File.Open("c:\\project\\" + fws.name[0] + fws.name.Substring(2), System.IO.FileMode.Append);
+                System.IO.StreamWriter fstream = new System.IO.StreamWriter(fs);
+
+                string definename = "__" + fws.name.Substring(fws.name.LastIndexOf('\\') + 1).ToUpper().Replace('.', '_') + "__";
+                fstream.WriteLine("#ifndef " + definename);
+                fstream.WriteLine("#define " + definename);
+                
+                if(fws.includes.Count>0)
+                    fstream.WriteLine("");
+                foreach (string str in fws.includes)
+                {
+                    fstream.WriteLine("#include <" + str.Substring(str.LastIndexOf('\\') + 1) + ">");
+                }
+                fstream.WriteLine("");
+
+                foreach (int ss in structureids)
+                {
+                    fstream.WriteLine("");
+                    WriteStruct(structures[ss], fstream);
+                }
+
+                fstream.WriteLine("#endif");
+
+                fstream.Close();
+                fs.Close();
 
                 i++;
                 Console.Write('.');
@@ -1120,73 +1130,74 @@ namespace pbdcstest
                             k++;
                         }
                     }
-                    //file.Write("\n{\n");
+                    file.Write("\n{\n");
 
-                    //if (s.members != null)
-                    //{
-                    //    foreach (Member m in s.members)
-                    //    {
-                    //        file.Write("\t/*off 0x" + m.offcet.ToString("00000000") + " size:" + m.length.ToString("0000") + " id:" + m.id + "*/ " + m.access + ": " + m.type + " " + m.name + ";\n");
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.members != null)
+                    {
+                        foreach (Member m in s.members)
+                        {
+                            file.Write("\t/*off 0x" + m.offcet.ToString("00000000") + " size:" + m.length.ToString("0000") + " id:" + m.id + "*/ " + m.access + ": " + m.type + " " + m.name + ";\n");
+                        }
+                        file.Write("\n");
+                    }
 
-                    //if (s.enums != null)
-                    //{
-                    //    foreach (Enum e in s.enums)
-                    //    {
-                    //        file.Write("\tenum /*id:" + e.id + "*/" + e.name + ";\n");
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.enums != null)
+                    {
+                        foreach (Enum e in s.enums)
+                        {
+                            file.Write("\tenum /*id:" + e.id + "*/" + e.name + ";\n");
+                        }
+                        file.Write("\n");
+                    }
 
-                    //if (s.functions != null)
-                    //{
-                    //    foreach (Function f in s.functions)
-                    //    {
-                    //        file.Write("\t//" + f.filename + "\n");
-                    //        if (f.type == null)
-                    //            file.Write("\t/*id:" + f.id + " */" + f.name + ";\n");
-                    //        else
-                    //        {
-                    //            int start = f.type.IndexOf('(');
-                    //            int end = f.type.IndexOf(')');
-                    //            string type = start < 0 ? "" : f.type.Substring(0, start);
-                    //            string arg = start < 0 ? "" : f.type.Substring(start, end - start + 1);
-                    //            file.Write("\t/*id:" + f.id + "*/ " + f.access + ": " + type + " " + f.name + " " + arg + ";\n");
-                    //        }
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.functions != null)
+                    {
+                        foreach (Function f in s.functions)
+                        {
+                            if (f.filename.Length > 2)
+                                file.Write("\t//" + f.filename + "\n");
+                            if (f.type == null)
+                                file.Write("\t/*id:" + f.id + " */" + f.name + ";\n");
+                            else
+                            {
+                                int start = f.type.IndexOf('(');
+                                int end = f.type.IndexOf(')');
+                                string type = start < 0 ? "" : f.type.Substring(0, start);
+                                string arg = start < 0 ? "" : f.type.Substring(start, end - start + 1);
+                                file.Write("\t/*id:" + f.id + "*/ " + f.access + ": " + type + " " + f.name + " " + arg + ";\n");
+                            }
+                        }
+                        file.Write("\n");
+                    }
 
-                    //if (s.substructures != null)
-                    //{
-                    //    foreach (SubStructure sub in s.substructures)
-                    //    {
-                    //        file.Write("\tstructure /*id:" + sub.id + "*/ " + sub.name + ";\n");
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.substructures != null)
+                    {
+                        foreach (SubStructure sub in s.substructures)
+                        {
+                            file.Write("\tstructure /*id:" + sub.id + "*/ " + sub.name + ";\n");
+                        }
+                        file.Write("\n");
+                    }
 
-                    //if (s.typedefs != null)
-                    //{
-                    //    foreach (Typedef t in s.typedefs)
-                    //    {
-                    //        file.Write("\ttypedef /*id:" + t.id + "*/" + t.type + " " + t.name + ";\n");
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.typedefs != null)
+                    {
+                        foreach (Typedef t in s.typedefs)
+                        {
+                            file.Write("\ttypedef /*id:" + t.id + "*/" + t.type + " " + t.name + ";\n");
+                        }
+                        file.Write("\n");
+                    }
 
-                    //if (s.vtables != null)
-                    //{
-                    //    foreach (VTable v in s.vtables)
-                    //    {
-                    //        file.Write("\t//vtable x" + v.count + "\n");
-                    //    }
-                    //    file.Write("\n");
-                    //}
+                    if (s.vtables != null)
+                    {
+                        foreach (VTable v in s.vtables)
+                        {
+                            file.Write("\t//vtable x" + v.count + "\n");
+                        }
+                        file.Write("\n");
+                    }
 
-                    //file.Write("};\n\n");
+                    file.Write("};\n\n");
                     file.Write("\n\n");
                 }
             }
